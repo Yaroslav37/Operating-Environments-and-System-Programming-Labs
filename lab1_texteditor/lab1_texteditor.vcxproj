@@ -143,6 +143,9 @@
     <Image Include="lab1_texteditor.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

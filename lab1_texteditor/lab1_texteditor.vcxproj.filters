@@ -46,4 +46,7 @@
       <Filter>Файлы ресурсов</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+  </ItemGroup>
 </Project>
