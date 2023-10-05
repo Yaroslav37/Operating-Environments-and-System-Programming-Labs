@@ -16,7 +16,6 @@ BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void CreateMainMenu(HWND hWnd);
 HWND hEdit;
-//void ChooseBackgroundColor(HWND hWnd);
 
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -134,9 +133,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     break;
     case WM_CREATE:
     {
+        LoadLibrary(TEXT("Msftedit.dll"));
         hEdit = CreateWindowEx(
             WS_EX_CLIENTEDGE,
-            L"EDIT",
+            MSFTEDIT_CLASS,
             NULL,
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL,
             0, 0, 0, 0,
@@ -210,6 +210,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             InvalidateRect(hWnd, NULL, TRUE);
         }
+        break;
+        case IDM_SETFONT:
+        {
+            LOGFONT lfont;
+            CHOOSEFONT cFont;
+            ZeroMemory(&cFont, sizeof(CHOOSEFONT));
+            cFont.lStructSize = sizeof(CHOOSEFONT);
+            cFont.hwndOwner = hWnd;
+            cFont.lpLogFont = &lfont;
+            cFont.Flags = CF_SCREENFONTS | CF_EFFECTS;
+
+            if (ChooseFont(&cFont))
+            {
+                HFONT hfont = CreateFontIndirect(cFont.lpLogFont);
+
+                CHARFORMAT cf;
+                memset(&cf, 0, sizeof(CHARFORMAT));
+                cf.cbSize = sizeof(CHARFORMAT);
+                cf.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE | CFM_BOLD | CFM_ITALIC | CFM_UNDERLINE;
+                cf.crTextColor = cFont.rgbColors;
+                wcscpy_s(cf.szFaceName, LF_FACESIZE, cFont.lpLogFont->lfFaceName);
+                cf.yHeight = cFont.lpLogFont->lfHeight * 20;
+                cf.dwEffects = ((cFont.lpLogFont->lfWeight == FW_BOLD) ? CFE_BOLD : 0) |
+                    ((cFont.lpLogFont->lfItalic) ? CFE_ITALIC : 0) |
+                    ((cFont.lpLogFont->lfUnderline) ? CFE_UNDERLINE : 0);
+
+                // Установите новый шрифт и цвет текста
+                SendMessage(hEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+            }
+        }
+        break;
         break;
         case IDM_NEW:
             SetWindowText(hEdit, L"");
@@ -349,6 +380,7 @@ void CreateMainMenu(HWND hWnd)
     AppendMenu(hFileMenu, MF_STRING, IDM_SAVEAS, L"Save As");
     AppendMenu(hFileMenu, MF_SEPARATOR, 0, nullptr);
     AppendMenu(hFileMenu, MF_STRING, IDM_CHANGE_BG, L"Background Color");
+    AppendMenu(hFileMenu, MF_STRING, IDM_SETFONT, L"Set font");
     AppendMenu(hFileMenu, MF_STRING, IDM_EXIT, L"Exit");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"File");
 
