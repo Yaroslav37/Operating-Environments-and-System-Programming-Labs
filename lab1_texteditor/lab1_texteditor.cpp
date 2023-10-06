@@ -18,6 +18,29 @@ void CreateMainMenu(HWND hWnd);
 HWND hEdit;
 
 
+HHOOK keyboardHook;
+
+LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode < 0) {
+        return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
+    }
+
+    // Обработка нажатия клавиши...
+    if (wParam == WM_KEYDOWN) {
+        KBDLLHOOKSTRUCT* pKeyboard = (KBDLLHOOKSTRUCT*)lParam;
+
+        // Например, проверим была ли нажата клавиша 'A'
+        if (pKeyboard->vkCode == 'A') {
+            MessageBox(NULL, L"Вы нажали клавишу 'A'", L"Hook Example", MB_OK);
+        }
+    }
+
+    return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
+}
+
+
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
@@ -95,6 +118,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+
     static HWND hEdit;
     static COLORREF clrBackground = RGB(255, 255, 255);
     static HBRUSH hbrBackground;
@@ -365,6 +389,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
+
     return 0;
 }
 
@@ -379,8 +404,8 @@ void CreateMainMenu(HWND hWnd)
     AppendMenu(hFileMenu, MF_STRING, IDM_SAVE, L"Save");
     AppendMenu(hFileMenu, MF_STRING, IDM_SAVEAS, L"Save As");
     AppendMenu(hFileMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenu(hFileMenu, MF_STRING, IDM_CHANGE_BG, L"Background Color");
-    AppendMenu(hFileMenu, MF_STRING, IDM_SETFONT, L"Set font");
+    //AppendMenu(hFileMenu, MF_STRING, IDM_CHANGE_BG, L"Background Color");
+    //AppendMenu(hFileMenu, MF_STRING, IDM_SETFONT, L"Set font");
     AppendMenu(hFileMenu, MF_STRING, IDM_EXIT, L"Exit");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"File");
 
@@ -393,10 +418,15 @@ void CreateMainMenu(HWND hWnd)
     AppendMenu(hEditMenu, MF_STRING, IDM_SELECTALL, L"Select All");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hEditMenu, L"Edit");
 
-    // Меню "Help"
-    HMENU hHelpMenu = CreateMenu();
-    AppendMenu(hHelpMenu, MF_STRING, IDM_ABOUT, L"About");
-    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hHelpMenu, L"Help");
+    HMENU hStylesMenu = CreateMenu();
+    AppendMenu(hStylesMenu, MF_STRING, IDM_CHANGE_BG, L"Background Color");
+    AppendMenu(hStylesMenu, MF_STRING, IDM_SETFONT, L"Font styles");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hStylesMenu, L"Styles");
+
+    //// Меню "Help"
+    //HMENU hHelpMenu = CreateMenu();
+    //AppendMenu(hHelpMenu, MF_STRING, IDM_ABOUT, L"About");
+    //AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hHelpMenu, L"Help");
 
     SetMenu(hWnd, hMenu);
 }
