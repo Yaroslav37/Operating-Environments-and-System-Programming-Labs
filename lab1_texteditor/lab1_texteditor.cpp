@@ -101,6 +101,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     static HBRUSH hbrBackground;
     switch (message)
     {
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLOREDIT:
+        if ((HWND)lParam == hEdit)
+        {
+            HDC hdcStatic = (HDC)wParam;
+            SetBkColor(hdcStatic, clrBackground);
+
+            if (hbrBackground)
+                DeleteObject(hbrBackground);
+            hbrBackground = CreateSolidBrush(clrBackground);
+
+            return (INT_PTR)hbrBackground;
+        }
+    break;
     case WM_HOTKEY:
     {
         int id = wParam;
@@ -372,12 +386,8 @@ void CreateMainMenu(HWND hWnd)
     AppendMenu(hFileMenu, MF_STRING, IDM_EXIT, L"Exit");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"File");
 
-    MENUINFO mInfo;
-    mInfo.cbSize = sizeof(MENUINFO);
-    mInfo.fMask = MIM_BACKGROUND;
-    mInfo.hbrBack = CreateSolidBrush(RGB(0, 0, 0));
     // Меню "Edit"
-    HMENU hEditMenu = CreateMenu(&mInfo);
+    HMENU hEditMenu = CreateMenu();
     AppendMenu(hEditMenu, MF_STRING, IDM_COPY, L"Copy");
     AppendMenu(hEditMenu, MF_STRING, IDM_PASTE, L"Paste");
     AppendMenu(hEditMenu, MF_STRING, IDM_CUT, L"Cut");
