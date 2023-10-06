@@ -96,7 +96,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     static HWND hEdit;
-    static COLORREF clrBackground = RGB(255, 255, 255);  // Установите значение цвета по умолчанию для фона
+    static COLORREF clrBackground = RGB(255, 255, 255);
     static HBRUSH hbrBackground;
     switch (message)
     {
@@ -190,12 +190,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         int wmId = LOWORD(wParam);
         switch (wmId)
         {
-        case IDM_CHANGE_BG:    // Обработка выбора пункта меню изменения фона
+        case IDM_CHANGE_BG:
         {
             CHOOSECOLOR cc;
-            COLORREF acrCustClr[16] = { RGB(255, 255, 255) };  // Установим белый как наш пользовательский цвет
+            COLORREF acrCustClr[16] = { RGB(255, 255, 255) };
 
-            // Инициализация структуры CHOOSECOLOR 
             ZeroMemory(&cc, sizeof(cc));
             cc.lStructSize = sizeof(cc);
             cc.hwndOwner = hWnd;
@@ -206,6 +205,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (ChooseColor(&cc))
             {
                 clrBackground = cc.rgbResult;
+                SendMessage(hEdit, EM_SETBKGNDCOLOR, 0, clrBackground);
             }
 
             InvalidateRect(hWnd, NULL, TRUE);
@@ -228,15 +228,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CHARFORMAT cf;
                 memset(&cf, 0, sizeof(CHARFORMAT));
                 cf.cbSize = sizeof(CHARFORMAT);
-                cf.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE | CFM_BOLD | CFM_ITALIC | CFM_UNDERLINE;
+                cf.dwMask = CFM_COLOR | CFM_FACE | CFM_SIZE | CFM_BOLD | CFM_ITALIC | CFM_UNDERLINE | CFM_STRIKEOUT;
                 cf.crTextColor = cFont.rgbColors;
                 wcscpy_s(cf.szFaceName, LF_FACESIZE, cFont.lpLogFont->lfFaceName);
                 cf.yHeight = cFont.lpLogFont->lfHeight * 20;
                 cf.dwEffects = ((cFont.lpLogFont->lfWeight == FW_BOLD) ? CFE_BOLD : 0) |
                     ((cFont.lpLogFont->lfItalic) ? CFE_ITALIC : 0) |
-                    ((cFont.lpLogFont->lfUnderline) ? CFE_UNDERLINE : 0);
+                    ((cFont.lpLogFont->lfUnderline) ? CFE_UNDERLINE : 0) |
+                    ((cFont.lpLogFont->lfStrikeOut) ? CFE_STRIKEOUT : 0);
 
-                // Установите новый шрифт и цвет текста
                 SendMessage(hEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
             }
         }
