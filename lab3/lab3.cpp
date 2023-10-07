@@ -7,7 +7,12 @@
 
 
 #define SIZE 1024
+#define ID_UPDATE_BUTTON 1
 DWORD processes[SIZE];
+
+HWND listBoxControl = NULL;
+HWND terminateButton = NULL;
+HWND updateButton = NULL;
 
 #define MAX_LOADSTRING 100
 
@@ -20,6 +25,8 @@ WCHAR szWindowClass[MAX_LOADSTRING];
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+
+void updateProcessList();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -95,9 +102,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    HWND listBoxControl = NULL;
-    HWND terminateButton = NULL;
-
     switch (message)
     {
     case WM_CREATE:
@@ -107,7 +111,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         RECT clientRect;
         GetClientRect(hWnd, &clientRect);
 
-        HWND listBoxControl = CreateWindowW(
+        listBoxControl = CreateWindowW(
             L"LISTBOX",
             L"",
             WS_CHILD | WS_VISIBLE | LBS_STANDARD,
@@ -117,7 +121,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             NULL);
 
-        HWND terminateButton = CreateWindowW(
+        terminateButton = CreateWindowW(
             L"BUTTON",
             L"Terminate Process",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
@@ -127,48 +131,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             NULL);
 
-        DWORD bytesReturned;
-
-        if (!EnumProcesses(processes, sizeof(processes), &bytesReturned))
-        {
-            // Обработка ошибок
-        }
-
-        DWORD processCount = bytesReturned / sizeof(DWORD);
-
-        for (DWORD i = 0; i < processCount; i++)
-        {
-            if (processes[i] != 0)
-            {
-                HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
-
-                if (NULL != hProcess)
-                {
-                    char szProcessName[MAX_PATH] = "<unknown>";
-
-                    if (GetModuleBaseNameA(hProcess, NULL, szProcessName, sizeof(szProcessName) / sizeof(char)))
-                    {
-                        wchar_t buffer[256];
-
-                        PROCESS_MEMORY_COUNTERS_EX pmc;
-                        if (GetProcessMemoryInfo(hProcess, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
-                        {
-                            unsigned long long memoryMB = pmc.PrivateUsage / 1024 / 1024;
-
-                            swprintf_s(buffer, 256, L"%S (PID: %u, Memory: %llu MB)", szProcessName, processes[i], memoryMB);
-                        }
-                        else
-                        {
-                            swprintf_s(buffer, 256, L"%S (PID: %u)", szProcessName, processes[i]);
-                        }
-
-                        SendMessageW(listBoxControl, LB_ADDSTRING, 0, (LPARAM)buffer);
-                    }
-
-                    CloseHandle(hProcess);
-                }
-            }
-        }
+        updateButton = CreateWindowW(
+            L"BUTTON",
+            L"Update",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            160,
+            clientRect.bottom - clientRect.top - 50,
+            150,
+            30,
+            hWnd,
+            (HMENU)ID_UPDATE_BUTTON,
+            hInst,
+            NULL);
+        
+        updateProcessList();
     }
     break;
     case WM_SIZE:
@@ -178,7 +154,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         SetWindowPos(listBoxControl, 0, 0, 0, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top - 50, SWP_NOMOVE);
         SetWindowPos(terminateButton, 0, 0, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
-
+        SetWindowPos(updateButton, 0, 160, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
     }
     break;
     case WM_COMMAND:
@@ -186,6 +162,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         int wmId = LOWORD(wParam);
         switch (wmId)
         {
+        case ID_UPDATE_BUTTON:
+            updateProcessList();
+            break;
         case IDM_EXIT:
             DestroyWindow(hWnd);
             break;
@@ -208,4 +187,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+void updateProcessList()
+{
+    DWORD processes[1024];
+    DWORD cbNeeded;
+    DWORD cProcesses;
+    unsigned int i;
+
+    ZeroMemory(processes, sizeof(processes));
+
+    if (!EnumProcesses(processes, sizeof(processes), &cbNeeded))
+    {
+        // Обработка ошибок
+        return;
+    }
+
+    cProcesses = cbNeeded / sizeof(DWORD);
+
+    SendMessage(listBoxControl, LB_RESETCONTENT, 0, 0);
+
+    for (i = 0; i < cProcesses; i++)
+    {
+        if (processes[i] != 0)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
+
+            if (NULL != hProcess)
+            {
+                char szProcessName[MAX_PATH] = "<unknown>";
+
+                if (GetModuleBaseNameA(hProcess, NULL, szProcessName, sizeof(szProcessName) / sizeof(char)))
+                {
+                    wchar_t buffer[256];
+
+                    PROCESS_MEMORY_COUNTERS_EX pmc;
+                    if (GetProcessMemoryInfo(hProcess, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
+                    {
+                        unsigned long long memoryMB = pmc.PrivateUsage / 1024 / 1024;
+
+                        swprintf_s(buffer, 256, L"%S (PID: %u, Memory: %llu MB)", szProcessName, processes[i], memoryMB);
+                    }
+                    else
+                    {
+                        swprintf_s(buffer, 256, L"%S (PID: %u)", szProcessName, processes[i]);
+                    }
+
+                    SendMessageW(listBoxControl, LB_ADDSTRING, 0, (LPARAM)buffer);
+                }
+
+                CloseHandle(hProcess);
+            }
+        }
+    }
 }
