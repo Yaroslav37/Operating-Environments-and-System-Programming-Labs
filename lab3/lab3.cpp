@@ -95,11 +95,17 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         return FALSE;
     }
 
+    SetWindowText(hWnd, L"Process Viewer");
+
+    HMENU hMenu = CreateMenu();
+    SetMenu(hWnd, hMenu);
+
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
     return TRUE;
 }
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -144,7 +150,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             (HMENU)ID_UPDATE_BUTTON,
             hInst,
             NULL);
-        
+
         updateProcessList();
     }
     break;
@@ -231,6 +237,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
