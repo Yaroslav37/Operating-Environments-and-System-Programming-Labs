@@ -8,6 +8,7 @@
 
 #define SIZE 1024
 #define ID_UPDATE_BUTTON 1
+#define ID_TERMINATE_BUTTON 2
 DWORD processes[SIZE];
 
 HWND listBoxControl = NULL;
@@ -127,7 +128,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             0, clientRect.bottom - clientRect.top - 50, 150, 30,
             hWnd,
-            NULL,
+            (HMENU)ID_TERMINATE_BUTTON,
             hInst,
             NULL);
 
@@ -168,6 +169,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_EXIT:
             DestroyWindow(hWnd);
             break;
+        case ID_TERMINATE_BUTTON:
+        {
+            int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
+
+            TCHAR buffer[256];
+            
+            SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
+
+            DWORD processId;
+            
+            swscanf_s(buffer, L"%*[^:]: %u", &processId);
+
+            if (index != LB_ERR)
+            {
+                HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+                if (hProcess != NULL)
+                {
+                    BOOL result = TerminateProcess(hProcess, 1);
+                    CloseHandle(hProcess);
+                    if (!result)
+                    {
+                        TCHAR buffer[256];
+                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+
+                        TCHAR msg[512];
+                        _stprintf_s(msg, _countof(msg), TEXT("Не удалось завершить процесс: %s"), buffer);
+                        MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
+                    }
+                    else
+                    {
+                        TCHAR buffer[256];
+                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+                        updateProcessList();
+                    }
+                }
+                else
+                {
+                    TCHAR buffer[256];
+                    SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+
+                    TCHAR msg[512];
+                    _stprintf_s(msg, _countof(msg), TEXT("Не удалось получить доступ к процессу: %s"), buffer);
+                    MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+        break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
         }
@@ -191,7 +239,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 void updateProcessList()
 {
-    DWORD processes[1024];
     DWORD cbNeeded;
     DWORD cProcesses;
     unsigned int i;
