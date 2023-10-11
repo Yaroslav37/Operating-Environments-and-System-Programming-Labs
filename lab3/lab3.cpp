@@ -4,11 +4,13 @@
 #include <CommCtrl.h>
 #include <psapi.h>
 #include <cstdio>
+#include <thread>
 
 
 #define SIZE 1024
 #define ID_UPDATE_BUTTON 1
 #define ID_TERMINATE_BUTTON 2
+#define ID_SUSPEND_BUTTON 3
 #define IDM_SYSTEM_MEMORY 1100
 #define IDM_SHOW_MEMORY_INFO 1101
 
@@ -18,6 +20,7 @@ HMENU hMenu;
 HWND hWnd;
 HWND listBoxControl = NULL;
 HWND terminateButton = NULL;
+HWND suspendButton = NULL;
 HWND updateButton = NULL;
 
 MEMORYSTATUSEX memInfo;
@@ -36,6 +39,7 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 void updateProcessList();
+void StartUpdateThread();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -53,12 +57,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         return FALSE;
     }
-
-    //hMenu = CreateMenu();
-    //HMENU hSubMenu = CreatePopupMenu();
-    //AppendMenu(hSubMenu, MF_STRING, IDM_SYSTEM_MEMORY, L"System Memory");
-    //AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, L"View");
-    //SetMenu(hWnd, hMenu);
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LAB3));
 
@@ -168,6 +166,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             NULL);
 
+        suspendButton = CreateWindowW(
+            L"BUTTON",
+            L"Suspend Thread",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            480, clientRect.bottom - clientRect.top - 70, 150, 30,
+            hWnd,
+            (HMENU)ID_SUSPEND_BUTTON,
+            hInst,
+            NULL);
+
         updateProcessList();
     }
     break;
@@ -201,7 +209,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
         case ID_UPDATE_BUTTON:
-            updateProcessList();
+            StartUpdateThread();
+            /*updateProcessList();*/
             break;
         case IDM_EXIT:
             DestroyWindow(hWnd);
@@ -248,6 +257,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     TCHAR msg[512];
                     _stprintf_s(msg, _countof(msg), TEXT("Не удалось получить доступ к процессу: %s"), buffer);
+                    MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+        break;
+        case ID_SUSPEND_BUTTON:
+        {
+            int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
+
+            TCHAR buffer[256];
+
+            SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
+
+            DWORD threadId;
+
+            swscanf_s(buffer, L"%*[^:]: %u", &threadId);
+
+            if (index != LB_ERR)
+            {
+                HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
+                if (hThread != NULL)
+                {
+                    DWORD suspendCount = SuspendThread(hThread);
+                    CloseHandle(hThread);
+                    if (suspendCount == -1)
+                    {
+                        TCHAR buffer[256];
+                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+
+                        TCHAR msg[512];
+                        _stprintf_s(msg, _countof(msg), TEXT("Не удалось приостановить поток: %s"), buffer);
+                        MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
+                    }
+                    else
+                    {
+                        TCHAR buffer[256];
+                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+                        updateProcessList();
+                    }
+                }
+                else
+                {
+                    TCHAR buffer[256];
+                    SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
+
+                    TCHAR msg[512];
+                    _stprintf_s(msg, _countof(msg), TEXT("Не удалось получить доступ к потоку: %s"), buffer);
                     MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
                 }
             }
@@ -319,4 +375,10 @@ void updateProcessList()
             }
         }
     }
+}
+
+void StartUpdateThread()
+{
+    std::thread updateThread(updateProcessList);
+    updateThread.detach();
 }
