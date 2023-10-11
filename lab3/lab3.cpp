@@ -5,6 +5,7 @@
 #include <psapi.h>
 #include <cstdio>
 #include <thread>
+#include <tlhelp32.h>
 
 
 #define SIZE 1024
@@ -40,6 +41,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 void updateProcessList();
 void StartUpdateThread();
+bool SuspendProcess(DWORD processId);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -270,42 +272,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
 
-            DWORD threadId;
+            DWORD processId;
 
-            swscanf_s(buffer, L"%*[^:]: %u", &threadId);
+            swscanf_s(buffer, L"%*[^:]: %u", &processId);
 
-            if (index != LB_ERR)
-            {
-                HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
-                if (hThread != NULL)
-                {
-                    DWORD suspendCount = SuspendThread(hThread);
-                    CloseHandle(hThread);
-                    if (suspendCount == -1)
-                    {
-                        TCHAR buffer[256];
-                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
-
-                        TCHAR msg[512];
-                        _stprintf_s(msg, _countof(msg), TEXT("Не удалось приостановить поток: %s"), buffer);
-                        MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
-                    }
-                    else
-                    {
-                        TCHAR buffer[256];
-                        SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
-                        updateProcessList();
-                    }
-                }
-                else
-                {
-                    TCHAR buffer[256];
-                    SendMessage(listBoxControl, LB_GETTEXT, index, (LPARAM)buffer);
-
-                    TCHAR msg[512];
-                    _stprintf_s(msg, _countof(msg), TEXT("Не удалось получить доступ к потоку: %s"), buffer);
-                    MessageBox(NULL, msg, TEXT("Ошибка"), MB_OK | MB_ICONERROR);
-                }
+            if (SuspendProcess(processId)) {
+                MessageBox(NULL, L"Процесс успешно приостановлен", L"Успех", MB_ICONINFORMATION);
+            }
+            else {
+                MessageBox(NULL, L"Не удалось приостановить процесс", L"Ошибка", MB_ICONERROR);
             }
         }
         break;
@@ -381,4 +356,36 @@ void StartUpdateThread()
 {
     std::thread updateThread(updateProcessList);
     updateThread.detach();
+}
+
+
+bool SuspendProcess(DWORD processId) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (hProcess == NULL) {
+        return false; // Не удалось открыть процесс
+    }
+
+    HANDLE hThreadSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hThreadSnapshot == INVALID_HANDLE_VALUE) {
+        CloseHandle(hProcess);
+        return false; // Не удалось создать снимок потоков
+    }
+
+    THREADENTRY32 threadEntry;
+    threadEntry.dwSize = sizeof(THREADENTRY32);
+    if (Thread32First(hThreadSnapshot, &threadEntry)) {
+        do {
+            if (threadEntry.th32OwnerProcessID == processId) {
+                HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadEntry.th32ThreadID);
+                if (hThread != NULL) {
+                    SuspendThread(hThread);
+                    CloseHandle(hThread);
+                }
+            }
+        } while (Thread32Next(hThreadSnapshot, &threadEntry));
+    }
+
+    CloseHandle(hThreadSnapshot);
+    CloseHandle(hProcess);
+    return true;
 }
