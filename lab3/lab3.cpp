@@ -9,11 +9,19 @@
 #define SIZE 1024
 #define ID_UPDATE_BUTTON 1
 #define ID_TERMINATE_BUTTON 2
+#define IDM_SYSTEM_MEMORY 1100
+#define IDM_SHOW_MEMORY_INFO 1101
+
 DWORD processes[SIZE];
 
+HMENU hMenu;
+HWND hWnd;
 HWND listBoxControl = NULL;
 HWND terminateButton = NULL;
 HWND updateButton = NULL;
+
+MEMORYSTATUSEX memInfo;
+bool showMemoryInfo = false;
 
 #define MAX_LOADSTRING 100
 
@@ -45,6 +53,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         return FALSE;
     }
+
+    //hMenu = CreateMenu();
+    //HMENU hSubMenu = CreatePopupMenu();
+    //AppendMenu(hSubMenu, MF_STRING, IDM_SYSTEM_MEMORY, L"System Memory");
+    //AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, L"View");
+    //SetMenu(hWnd, hMenu);
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LAB3));
 
@@ -97,7 +111,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     SetWindowText(hWnd, L"Process Viewer");
 
-    HMENU hMenu = CreateMenu();
+    hMenu = CreateMenu();
+    HMENU hSubMenu = CreatePopupMenu();
+    AppendMenu(hSubMenu, MF_STRING, IDM_SYSTEM_MEMORY, L"System Memory");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, L"View");
     SetMenu(hWnd, hMenu);
 
     ShowWindow(hWnd, nCmdShow);
@@ -164,11 +181,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowPos(updateButton, 0, 160, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
     }
     break;
+
     case WM_COMMAND:
     {
         int wmId = LOWORD(wParam);
         switch (wmId)
         {
+        case IDM_SYSTEM_MEMORY:
+        {
+            MEMORYSTATUSEX memoryStatus;
+            memoryStatus.dwLength = sizeof(memoryStatus);
+            GlobalMemoryStatusEx(&memoryStatus);
+
+            wchar_t message[256];
+            swprintf_s(message, L"Total physical memory: %lld MB\nAvailable physical memory: %lld MB",
+                memoryStatus.ullTotalPhys / (1024 * 1024), memoryStatus.ullAvailPhys / (1024 * 1024));
+
+            MessageBox(hWnd, message, L"Memory Info", MB_OK);
+        }
+        break;
         case ID_UPDATE_BUTTON:
             updateProcessList();
             break;
@@ -225,13 +256,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
         }
-    }
-    break;
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
-        EndPaint(hWnd, &ps);
     }
     break;
     case WM_DESTROY:
