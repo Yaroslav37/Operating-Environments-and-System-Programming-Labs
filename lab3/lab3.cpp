@@ -175,7 +175,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         suspendButton = CreateWindowW(
             L"BUTTON",
-            L"Suspend Thread",
+            L"Suspend Threads",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             480, clientRect.bottom - clientRect.top - 70, 150, 30,
             hWnd,
@@ -185,7 +185,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         resumeButton = CreateWindowW(
             L"BUTTON",
-            L"Resume Thread",
+            L"Resume Threads",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             480, clientRect.bottom - clientRect.top - 70, 150, 30,
             hWnd,
@@ -202,8 +202,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         GetClientRect(hWnd, &clientRect);
 
         SetWindowPos(listBoxControl, 0, 0, 0, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top - 50, SWP_NOMOVE);
-        SetWindowPos(terminateButton, 0, 0, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
-        SetWindowPos(updateButton, 0, 160, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
+        SetWindowPos(terminateButton, 0, 160, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
+        SetWindowPos(updateButton, 0, 0, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
         SetWindowPos(suspendButton, 0, 320, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
         SetWindowPos(resumeButton, 0, 480, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
 
@@ -238,14 +238,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case ID_TERMINATE_BUTTON:
         {
             int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
-
-            //TCHAR buffer[256];
-            //
-            //SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
-
-            //DWORD processId;
-            //
-            //swscanf_s(buffer, L"%*[^:]: %u", &processId);
 
             DWORD processId = getProcessId();
 
@@ -288,14 +280,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
 
-            //TCHAR buffer[256];
-
-            //SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
-
-            //DWORD processId;
-
-            //swscanf_s(buffer, L"%*[^:]: %u", &processId);
-
             DWORD processId = getProcessId();
 
             if (SuspendProcess(processId)) {
@@ -309,14 +293,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case ID_RESUME_BUTTON:
         {
             int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
-
-            //TCHAR buffer[256];
-
-            //SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
-
-            //DWORD processId;
-
-            //swscanf_s(buffer, L"%*[^:]: %u", &processId);
 
             DWORD processId = getProcessId();
 
