@@ -12,6 +12,7 @@
 #define ID_UPDATE_BUTTON 1
 #define ID_TERMINATE_BUTTON 2
 #define ID_SUSPEND_BUTTON 3
+#define ID_RESUME_BUTTON 4
 #define IDM_SYSTEM_MEMORY 1100
 #define IDM_SHOW_MEMORY_INFO 1101
 
@@ -23,6 +24,8 @@ HWND listBoxControl = NULL;
 HWND terminateButton = NULL;
 HWND suspendButton = NULL;
 HWND updateButton = NULL;
+HWND resumeButton = NULL;
+
 
 MEMORYSTATUSEX memInfo;
 bool showMemoryInfo = false;
@@ -42,6 +45,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 void updateProcessList();
 void StartUpdateThread();
 bool SuspendProcess(DWORD processId);
+bool ResumeProcess(DWORD processId);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -178,6 +182,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             NULL);
 
+        resumeButton = CreateWindowW(
+            L"BUTTON",
+            L"Resume Thread",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            480, clientRect.bottom - clientRect.top - 70, 150, 30,
+            hWnd,
+            (HMENU)ID_RESUME_BUTTON,
+            hInst,
+            NULL);
+
         updateProcessList();
     }
     break;
@@ -189,6 +203,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowPos(listBoxControl, 0, 0, 0, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top - 50, SWP_NOMOVE);
         SetWindowPos(terminateButton, 0, 0, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
         SetWindowPos(updateButton, 0, 160, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
+        SetWindowPos(suspendButton, 0, 320, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
+        SetWindowPos(resumeButton, 0, 480, clientRect.bottom - clientRect.top - 50, 150, 30, SWP_NOSIZE);
+
     }
     break;
 
@@ -281,6 +298,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             else {
                 MessageBox(NULL, L"Не удалось приостановить процесс", L"Ошибка", MB_ICONERROR);
+            }
+        }
+        break;
+        case ID_RESUME_BUTTON:
+        {
+            int index = SendMessage(listBoxControl, LB_GETCURSEL, 0, 0);
+
+            TCHAR buffer[256];
+
+            SendMessage(listBoxControl, LB_GETTEXT, (WPARAM)index, (LPARAM)buffer);
+
+            DWORD processId;
+
+            swscanf_s(buffer, L"%*[^:]: %u", &processId);
+
+            if (ResumeProcess(processId)) {
+                MessageBox(NULL, L"Процесс успешно возобновлен", L"Успех", MB_ICONINFORMATION);
+            }
+            else {
+                MessageBox(NULL, L"Не удалось возобновить процесс", L"Ошибка", MB_ICONERROR);
             }
         }
         break;
@@ -379,6 +416,37 @@ bool SuspendProcess(DWORD processId) {
                 HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadEntry.th32ThreadID);
                 if (hThread != NULL) {
                     SuspendThread(hThread);
+                    CloseHandle(hThread);
+                }
+            }
+        } while (Thread32Next(hThreadSnapshot, &threadEntry));
+    }
+
+    CloseHandle(hThreadSnapshot);
+    CloseHandle(hProcess);
+    return true;
+}
+
+bool ResumeProcess(DWORD processId) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (hProcess == NULL) {
+        return false; // Не удалось открыть процесс
+    }
+
+    HANDLE hThreadSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hThreadSnapshot == INVALID_HANDLE_VALUE) {
+        CloseHandle(hProcess);
+        return false; // Не удалось создать снимок потоков
+    }
+
+    THREADENTRY32 threadEntry;
+    threadEntry.dwSize = sizeof(THREADENTRY32);
+    if (Thread32First(hThreadSnapshot, &threadEntry)) {
+        do {
+            if (threadEntry.th32OwnerProcessID == processId) {
+                HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadEntry.th32ThreadID);
+                if (hThread != NULL) {
+                    ResumeThread(hThread);
                     CloseHandle(hThread);
                 }
             }
