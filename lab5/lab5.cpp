@@ -11,15 +11,20 @@
 #define IDC_EDIT_SUBKEY 1101
 #define IDC_BUTTON_CREATE_KEY 1102
 #define IDC_BUTTON_DELETE_KEY 1103
+#define IDC_BUTTON_ADD_NEW_PARAMETER 1104
 
 #define MAX_LOADSTRING 100
 
 HWND hWnd;
 HMENU hMenu;
 HWND hEdit;
-HWND hButton, hButtonDelete;
-HWND hValueNameEdit, hStringValueRadio, hDwordValueRadio;
+HWND hButton, hButtonDelete, hButtonAddNewParameter;
+//HWND hValueNameEdit, hStringValueRadio, hDwordValueRadio;
 //HWND hMainWindow;
+
+HWND hComboBox;
+HWND hValueDataEdit;
+HWND hValueNameEdit;
 
 HWND hMainWindow, hValueList;
 HWND hSubKeyEdit;
@@ -35,6 +40,8 @@ bool CreateRegistryKey(HKEY hRootKey, LPCWSTR subKey);
 void PopulateValueList(HKEY hKey, LPCWSTR subKey);
 void LoadRegistryInfoToListBox(HWND hListBox, LPCWSTR subKey);
 bool DeleteRegistryKey(HKEY hKey, LPCWSTR subKey);
+bool SetRegistryValue(HKEY hKey, LPCSTR subKey, LPCSTR valueName, DWORD valueType, const BYTE* valueData, DWORD dataSize);
+bool CreateRegistryValue();
 
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
@@ -151,6 +158,18 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        NULL
    );
 
+   hButtonAddNewParameter = CreateWindowEx(
+       0,
+       L"BUTTON",
+       L"Создать параметр",
+       WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+       270, 45, 120, 30, // Новые координаты (270, 45)
+       hWnd,
+       (HMENU)IDC_BUTTON_ADD_NEW_PARAMETER, // Новый идентификатор
+       hInstance,
+       NULL
+   );
+
    hMenu = CreateMenu();
    HMENU hSubMenu = CreatePopupMenu();
    SetMenu(hWnd, hMenu);
@@ -194,6 +213,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         //// `listbox` для отображения значений
         //hValueList = CreateWindowEx(0, L"LISTBOX", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | LBS_DISABLENOSCROLL | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT,
         //    50, 150, 300, 200, hWnd, NULL, NULL, NULL);
+
+        hComboBox = CreateWindow(TEXT("ComboBox"), NULL, WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST,
+            10, 100, 200, 200, hWnd, NULL, NULL, NULL);
+
+        // Добавление элементов в выпадающий список с соответствующими типами данных
+        SendMessage(hComboBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(TEXT("Строковый параметр")));
+        SendMessage(hComboBox, CB_SETITEMDATA, 0, REG_SZ);
+        SendMessage(hComboBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(TEXT("Параметр DWORD(32 бита)")));
+        SendMessage(hComboBox, CB_SETITEMDATA, 1, REG_DWORD);
+        SendMessage(hComboBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(TEXT("Параметр QWORD(64 бита)")));
+        SendMessage(hComboBox, CB_SETITEMDATA, 2, REG_QWORD);
+
+        // Создание поля ввода для значения данных
+        hValueDataEdit = CreateWindow(TEXT("EDIT"), NULL, WS_VISIBLE | WS_CHILD | WS_BORDER,
+            10, 200, 150, 20, hWnd, NULL, NULL, NULL);
+
+        // Создание поля ввода для имени значения
+        hValueNameEdit = CreateWindow(TEXT("EDIT"), NULL, WS_VISIBLE | WS_CHILD | WS_BORDER,
+            10, 300, 150, 20, hWnd, NULL, NULL, NULL);
 
     }
     break;
@@ -245,6 +283,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             delete[] subKey; // Не забудьте освободить память
         }
         break;
+        case IDC_BUTTON_ADD_NEW_PARAMETER:
+        {
+            //int length = GetWindowTextLength(hEdit);
+            //LPWSTR subKey = new WCHAR[length + 1];
+            //GetWindowText(hEdit, subKey, length + 1);
+
+
+
+            //LPCSTR subKey = "Software\\MyApp";
+
+            //LPCSTR valueName = "MyValue";
+            //DWORD valueType = REG_SZ;
+            //const BYTE* valueData = (const BYTE*)"Hello, World!";
+            //DWORD dataSize = strlen((const char*)valueData) + 1;
+
+            //if (SetRegistryValue(HKEY_CURRENT_USER, subKey, valueName, valueType, valueData, dataSize)) {
+            //    MessageBox(hWnd, L"Successfully created registry key and set value.", L"Успех", MB_OK | MB_ICONINFORMATION);
+            //}
+
+            CreateRegistryValue();
+        }
+        break;
         }
         break;
         // Остальные случаи обработки команд
@@ -294,6 +354,90 @@ bool DeleteRegistryKey(HKEY hKey, LPCWSTR subKey) {
     }
 }
 
+bool SetRegistryValue(HKEY hKey, LPCSTR subKey, LPCSTR valueName, DWORD valueType, const BYTE* valueData, DWORD dataSize)
+{
+    HKEY hSubKey;
+    LONG openResult = RegCreateKeyExA(hKey, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hSubKey, NULL);
+
+    if (openResult != ERROR_SUCCESS) {
+        MessageBox(hWnd, L"Failed to create registry key.", L"Успех", MB_OK | MB_ICONINFORMATION);
+        return false;
+    }
+
+    LONG setValueResult = RegSetValueExA(hSubKey, valueName, 0, valueType, valueData, dataSize);
+
+    if (setValueResult != ERROR_SUCCESS) {
+        MessageBox(hWnd, L"Failed to set registry value", L"Успех", MB_OK | MB_ICONINFORMATION);
+        RegCloseKey(hSubKey);
+        return false;
+    }
+
+    RegCloseKey(hSubKey);
+    return true;
+}
+
+bool CreateRegistryValue()
+{
+    // Получение выбранного типа данных из выпадающего списка
+    int selectedIndex = SendMessage(hComboBox, CB_GETCURSEL, 0, 0);
+    DWORD valueType = static_cast<DWORD>(SendMessage(hComboBox, CB_GETITEMDATA, selectedIndex, 0));
+
+    // Получение введенного значения данных из поля ввода
+    char valueData[256];
+    GetWindowTextA(hValueDataEdit, valueData, sizeof(valueData));
+
+    // Получение введенного имени значения из поля ввода
+    char valueName[256];
+    GetWindowTextA(hValueNameEdit, valueName, sizeof(valueName));
+
+    // Создание нового значения в реестре
+    HKEY hKey;
+    LPCSTR subKey = "Software\\MyApp";
+    LONG openResult = RegCreateKeyExA(HKEY_CURRENT_USER, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hKey, NULL);
+
+    if (openResult != ERROR_SUCCESS) {
+        MessageBox(NULL, L"Failed to create registry key", L"Error", MB_ICONERROR);
+        return FALSE;
+    }
+
+    LONG setValueResult;
+    if (valueType == 4) {
+
+        DWORD result;
+        char* endPtr; // Указатель, указывающий на первый символ, не преобразованный в число
+
+        result = strtoul(valueData, &endPtr, 10);
+
+        if (*endPtr == '\0') {
+            // Преобразование прошло успешно, строка была полностью преобразована в число
+            // result теперь содержит число в формате DWORD
+        }
+        else {
+            // Преобразование не удалось, строка содержит нечисловые символы
+            // Обработка ошибки здесь
+        }
+        /*setValueResult = RegSetValueExA(hKey, valueName, 0, valueType, reinterpret_cast<const BYTE*>(result), strlen(valueData) + 1);*/
+        BYTE data[sizeof(DWORD)]; // Создаем буфер для хранения данных DWORD
+        memcpy(data, &result, sizeof(DWORD)); // Копируем DWORD в буфер
+        setValueResult = RegSetValueExA(hKey, valueName, 0, REG_DWORD, data, sizeof(DWORD));
+    }
+    else if (valueType == 1) {
+        setValueResult = RegSetValueExA(hKey, valueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), strlen(valueData) + 1);
+    }
+
+
+    if (setValueResult != ERROR_SUCCESS) {
+        MessageBox(NULL, L"Failed to set registry value", L"Error", MB_ICONERROR);
+        RegCloseKey(hKey);
+        return FALSE;
+    }
+
+    RegCloseKey(hKey);
+    MessageBox(NULL, L"Registry value created successfully", L"Success", MB_ICONINFORMATION);
+
+    return TRUE;
+}
+
 void DeleteSubkeys(HKEY hKey) {
     TCHAR achKey[255]; // Буфер для имени подключа
     DWORD cbName;      // Длина имени подключа
@@ -316,231 +460,3 @@ void DeleteSubkeys(HKEY hKey) {
     }
 }
 
-//std::vector<RegistryValue> GetRegistryValues(HKEY hKey, LPCWSTR subKey)
-//{
-//    std::vector<RegistryValue> values;
-//
-//    HKEY hSubKey = NULL;
-//    if (RegOpenKeyEx(hKey, subKey, 0, KEY_READ, &hSubKey) == ERROR_SUCCESS)
-//    {
-//        DWORD valueCount = 0;
-//        DWORD maxValueNameLength = 0;
-//        if (RegQueryInfoKey(hSubKey, NULL, NULL, NULL, NULL, NULL, NULL, &valueCount, &maxValueNameLength, NULL, NULL, NULL) == ERROR_SUCCESS)
-//        {
-//            for (DWORD i = 0; i < valueCount; i++)
-//            {
-//                DWORD valueNameLength = maxValueNameLength + 1;
-//                WCHAR* valueNameBuffer = new WCHAR[valueNameLength];
-//
-//                DWORD valueType = 0;
-//                DWORD valueDataSize = 0;
-//
-//                if (RegEnumValue(hSubKey, i, valueNameBuffer, &valueNameLength, NULL, &valueType, NULL, &valueDataSize) == ERROR_SUCCESS)
-//                {
-//                    if (valueType == REG_SZ || valueType == REG_EXPAND_SZ || valueType == REG_MULTI_SZ)
-//                    {
-//                        /*WCHAR* valueDataBuffer = new WCHAR[valueDataSize / sizeof(WCHAR)];*/
-//                        BYTE valueDataBuffer[1024];
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer, &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(valueDataBuffer), &valueDataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer;
-//                            value.type = valueType;
-//                            //value.data = valueDataBuffer;
-//                            values.push_back(value);
-//                        }
-//
-//                        delete[] valueDataBuffer;
-//                    }
-//                    else if (valueType == REG_DWORD || valueType == REG_QWORD)
-//                    {
-//                        DWORD valueData = 0;
-//                        DWORD dataSize = sizeof(valueData); // Используйте правильный размер
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer, &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(&valueData), &dataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer;
-//                            value.type = valueType;
-//                            value.data = std::to_wstring(valueData);
-//                            values.push_back(value);
-//                        }
-//                    }
-//                }
-//
-//
-//                delete[] valueNameBuffer;
-//            }
-//        }
-//
-//        RegCloseKey(hSubKey);
-//    }
-//
-//    return values;
-//}
-
-//std::vector<RegistryValue> GetRegistryValues(HKEY hKey, LPCWSTR subKey)
-//{
-//    std::vector<RegistryValue> values;
-//
-//    HKEY hSubKey = NULL;
-//    if (RegOpenKeyEx(hKey, subKey, 0, KEY_READ, &hSubKey) == ERROR_SUCCESS)
-//    {
-//        DWORD valueCount = 0;
-//        if (RegQueryInfoKey(hSubKey, NULL, NULL, NULL, NULL, NULL, NULL, &valueCount, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-//        {
-//            for (DWORD i = 0; i < valueCount; i++)
-//            {
-//                DWORD valueNameLength = 16383; // Максимальная длина имени значения
-//                std::vector<WCHAR> valueNameBuffer(valueNameLength);
-//
-//                DWORD valueType = 0;
-//                DWORD valueDataSize = 0;
-//
-//                if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, NULL, &valueDataSize) == ERROR_SUCCESS)
-//                {
-//                    if (valueType == REG_SZ || valueType == REG_EXPAND_SZ || valueType == REG_MULTI_SZ)
-//                    {
-//                        std::vector<WCHAR> valueDataBuffer(valueDataSize / sizeof(WCHAR));
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(valueDataBuffer.data()), &valueDataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer.data();
-//                            value.type = valueType;
-//                            value.data = valueDataBuffer.data();
-//                            values.push_back(value);
-//                        }
-//                    }
-//                    else if (valueType == REG_DWORD || valueType == REG_QWORD)
-//                    {
-//                        DWORD valueData = 0;
-//                        DWORD dataSize = sizeof(valueData);
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(&valueData), &dataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer.data();
-//                            value.type = valueType;
-//                            value.data = std::to_wstring(valueData);
-//                            values.push_back(value);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//
-//        RegCloseKey(hSubKey);
-//    }
-//
-//    return values;
-//}
-
-//std::vector<RegistryValue> GetRegistryValues(HKEY hKey, LPCWSTR subKey)
-//{
-//    std::vector<RegistryValue> values;
-//
-//    HKEY hSubKey = NULL;
-//    if (RegOpenKeyEx(hKey, subKey, 0, KEY_READ, &hSubKey) == ERROR_SUCCESS)
-//    {
-//        DWORD valueCount = 0;
-//        if (RegQueryInfoKey(hSubKey, NULL, NULL, NULL, NULL, NULL, NULL, &valueCount, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-//        {
-//            for (DWORD i = 0; i < valueCount; i++)
-//            {
-//                DWORD valueNameLength = 16383; // Максимальная длина имени значения
-//                std::vector<WCHAR> valueNameBuffer(valueNameLength);
-//
-//                DWORD valueType = 0;
-//                DWORD valueDataSize = 0;
-//
-//                if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, NULL, &valueDataSize) == ERROR_SUCCESS)
-//                {
-//                    if (valueType == REG_SZ || valueType == REG_EXPAND_SZ || valueType == REG_MULTI_SZ)
-//                    {
-//                        std::vector<WCHAR> valueDataBuffer(valueDataSize / sizeof(WCHAR));
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(valueDataBuffer.data()), &valueDataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer.data();
-//                            value.type = valueType;
-//                            value.data = valueDataBuffer.data();
-//                            values.push_back(value);
-//                        }
-//                    }
-//                    else if (valueType == REG_DWORD || valueType == REG_QWORD)
-//                    {
-//                        DWORD valueData = 0;
-//                        DWORD dataSize = sizeof(valueData);
-//
-//                        if (RegEnumValue(hSubKey, i, valueNameBuffer.data(), &valueNameLength, NULL, &valueType, reinterpret_cast<LPBYTE>(&valueData), &dataSize) == ERROR_SUCCESS)
-//                        {
-//                            RegistryValue value;
-//                            value.name = valueNameBuffer.data();
-//                            value.type = valueType;
-//                            value.data = std::to_wstring(valueData);
-//                            values.push_back(value);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//
-//        RegCloseKey(hSubKey);
-//    }
-//
-//    return values;
-//}
-
-//void LoadRegistryInfoToListBox(HWND hListBox, LPCWSTR subKey)
-//{
-//    HKEY hRootKey = HKEY_CURRENT_USER;
-//    HKEY hKey;
-//    if (RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-//    {
-//        // Переменные для хранения информации о реестровых элементах
-//        wchar_t valueName[256];
-//        DWORD valueNameSize = 256;
-//        DWORD valueType;
-//        BYTE valueData[1024];
-//        DWORD valueDataSize = 1024;
-//
-//        // Переменные для хранения индекса и текстового представления
-//        int index = 0;
-//        wchar_t itemText[512];
-//
-//        // Загрузка информации о реестровых элементах и добавление их в listbox
-//        while (RegEnumValue(hKey, index, valueName, &valueNameSize, NULL, &valueType, valueData, &valueDataSize) == ERROR_SUCCESS)
-//        {
-//            // Создание текстового представления информации о реестровом элементе
-//            swprintf_s(itemText, L"%s (Type: %d)", valueName, valueType);
-//
-//            // Добавление элемента в listbox
-//            SendMessage(hListBox, LB_ADDSTRING, 0, (LPARAM)itemText);
-//
-//            // Следующий элемент
-//            index++;
-//            valueNameSize = 256;
-//            valueDataSize = 1024;
-//        }
-//
-//        RegCloseKey(hKey);
-//    }
-//}
-//
-//void PopulateValueList(HKEY hKey, LPCWSTR subKey)
-//{
-//    std::vector<RegistryValue> values = GetRegistryValues(hKey, subKey);
-//
-//    // Очистка `listbox`
-//    SendMessage(hValueList, LB_RESETCONTENT, 0, 0);
-//
-//    // Добавление значений в список
-//    for (const auto& value : values)
-//    {
-//        std::wstring itemText = value.name + L" | " + std::to_wstring(value.type) + L" | " + value.data;
-//        SendMessage(hValueList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(itemText.c_str()));
-//    }
-//}
