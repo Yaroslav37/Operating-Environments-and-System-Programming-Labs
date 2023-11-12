@@ -223,8 +223,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             wchar_t message[256];
             swprintf_s(message, L"Total physical memory: %lld MB\nAvailable physical memory: %lld MB",
-                memoryStatus.ullTotalPhys / (1024 * 1024), memoryStatus.ullAvailPhys / (1024 * 1024));
-
+                memoryStatus.ullTotalPhys / (1024 * 1024), double(memoryStatus.ullAvailPhys / memoryStatus.ullTotalPhys));
             MessageBox(hWnd, message, L"Memory Info", MB_OK);
         }
         break;
